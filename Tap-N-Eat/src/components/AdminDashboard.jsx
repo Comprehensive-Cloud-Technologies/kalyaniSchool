@@ -319,8 +319,12 @@ function AdminDashboard({
   const [tuckshopScannedStudent, setTuckshopScannedStudent] = useState(null);
   const [tuckshopLastSale, setTuckshopLastSale] = useState(null);
   const [tuckshopItemForm, setTuckshopItemForm] = useState({ item_name: '', price: '', category: 'General' });
+  const [tuckshopEditId, setTuckshopEditId] = useState(null); // null = add, number = edit
   const [tuckshopActiveCategory, setTuckshopActiveCategory] = useState('All');
   const [tuckshopView, setTuckshopView] = useState('pos'); // 'pos' | 'items'
+
+  // Scan history state
+  const [scanHistory, setScanHistory] = useState([]);
 
   // Reports state
   const [reportType, setReportType] = useState('razorpay');
@@ -335,6 +339,7 @@ function AdminDashboard({
   // Meal Categories state
   const [mealCategories, setMealCategories] = useState([]);
   const [categoryForm, setCategoryForm] = useState({ category_name: '', start_time: '', end_time: '' });
+  const [editingCategoryId, setEditingCategoryId] = useState(null);
 
   // Monthly Meal Plans state
   const [monthlyPlans, setMonthlyPlans] = useState([]);
@@ -479,6 +484,7 @@ function AdminDashboard({
       loadMealSlots();
       loadMealTypes();
       loadGradeMealPrices();
+      loadScanHistory();
     }
     if (activeSection === 'monthly-plans') {
       loadMealTypes();
@@ -751,15 +757,25 @@ function AdminDashboard({
     e.preventDefault();
     try {
       const schoolId = localStorage.getItem('adminSchoolId');
-      const body = { ...categoryForm, school_id: schoolId ? parseInt(schoolId, 10) : null };
-      const { response, data } = await fetchJsonWithApiFallback('meal-categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      let response, data;
+      if (editingCategoryId) {
+        ({ response, data } = await fetchJsonWithApiFallback('meal-categories', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingCategoryId, ...categoryForm }),
+        }));
+      } else {
+        const body = { ...categoryForm, school_id: schoolId ? parseInt(schoolId, 10) : null };
+        ({ response, data } = await fetchJsonWithApiFallback('meal-categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }));
+      }
       if (response.ok) {
         showAlert(data.message || 'Category saved', 'success');
         setCategoryForm({ category_name: '', start_time: '', end_time: '' });
+        setEditingCategoryId(null);
         await loadMealCategories();
       } else {
         showAlert(data.error || 'Unable to save category', 'error');
@@ -1338,6 +1354,22 @@ function AdminDashboard({
     }
   };
   
+  const loadScanHistory = async () => {
+    try {
+      const schoolId = localStorage.getItem('adminSchoolId');
+      let url = `${API_BASE_URL}/transactions?limit=20`;
+      if (schoolId) url += `&school_id=${schoolId}`;
+      const response = await apiFetch(url);
+      const data = await response.json();
+      if (response.ok) {
+        const canteenRecords = (data.transactions || []).filter(
+          (t) => t.transaction_type === 'canteen' || t.transaction_type === 'canteen_denied'
+        );
+        setScanHistory(canteenRecords);
+      }
+    } catch (e) { /* silent */ }
+  };
+
   const handleRfidScan = async (e) => {
     if (e) e.preventDefault();
     if (!rfidInput.trim()) { showAlert('Please enter RFID number', 'error'); return; }
@@ -1367,6 +1399,7 @@ function AdminDashboard({
         setDenyReason('');
         showAlert(`✅ Access granted — ${result.transaction?.meal_plan || result.transaction?.meal_category || 'Meal Plan'}`, 'success');
         loadEmployees();
+        loadScanHistory();
       } else {
         // Denied or error — still show student info if returned
         setScannedEmployee(result.employee ? { ...result.employee, rfid: scannedRfid } : null);
@@ -1374,6 +1407,7 @@ function AdminDashboard({
         setScanStatus('denied');
         setDenyReason(result.deny_reason || result.message || 'Access denied');
         showAlert(`❌ ${result.deny_reason || result.message || 'Access denied'}`, 'error');
+        loadScanHistory();
       }
     } catch (error) {
       console.error('Error scanning RFID:', error);
@@ -1407,14 +1441,25 @@ function AdminDashboard({
     const price = parseFloat(tuckshopItemForm.price);
     if (!name || isNaN(price) || price < 0) return showAlert('Item name and valid price are required', 'error');
     try {
-      const { response, data } = await schoolApiFallback('tuckshop', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'item', ...tuckshopItemForm, price }),
-      });
+      let result;
+      if (tuckshopEditId) {
+        result = await schoolApiFallback('tuckshop', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: tuckshopEditId, ...tuckshopItemForm, price }),
+        });
+      } else {
+        result = await schoolApiFallback('tuckshop', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'item', ...tuckshopItemForm, price }),
+        });
+      }
+      const { response, data } = result;
       if (response.ok) {
         showAlert(data.message || 'Item saved', 'success');
         setTuckshopItemForm({ item_name: '', price: '', category: 'General' });
+        setTuckshopEditId(null);
         loadTuckshopItems();
       } else {
         showAlert(data.message || 'Could not save item', 'error');
@@ -1464,12 +1509,12 @@ function AdminDashboard({
         }),
       });
       if (response.ok) {
-        setTuckshopScannedStudent(data.student);
+        setTuckshopScannedStudent(data.employee);
         setTuckshopLastSale(data);
         setTuckshopCart([]);
         setTuckshopRfid('');
         loadEmployees();
-        showAlert(`₹${data.total_deducted?.toFixed(2)} deducted from ${data.student?.name}'s wallet`, 'success');
+        showAlert(`₹${parseFloat(data.transaction?.total || 0).toFixed(2)} deducted from ${data.employee?.name}'s wallet`, 'success');
       } else {
         showAlert(data.message || 'Purchase failed', 'error');
       }
@@ -1493,6 +1538,15 @@ function AdminDashboard({
       }
     } catch (e) { showAlert('Error loading report', 'error'); }
     finally { setReportLoading(false); }
+  };
+
+  const deleteReport = async (id) => {
+    if (!window.confirm('Delete this record? This cannot be undone.')) return;
+    try {
+      const { response, data } = await fetchJsonWithApiFallback(`reports?type=${reportType}&id=${id}`, { method: 'DELETE' });
+      if (response.ok) { showAlert('Record deleted', 'success'); loadReports(); }
+      else showAlert(data.message || 'Could not delete record', 'error');
+    } catch (e) { showAlert('Error deleting record', 'error'); }
   };
   
   // Load Transactions
@@ -2406,6 +2460,7 @@ function AdminDashboard({
 
           {/* RFID Scan Section */}
           {activeSection === 'scan' && (
+            <>
             <div className="rfid-section">
               {/* Scan input panel */}
               <div className="rfid-panels">
@@ -2531,6 +2586,50 @@ function AdminDashboard({
                 </div>
               </div>
             </div>
+
+            {/* Recent Scan Records */}
+            <div className="master-card" style={{ marginTop: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div>
+                  <p className="master-card-title">Recent Meal Scan Records</p>
+                  <p className="master-card-sub">Last 20 canteen access entries for this school</p>
+                </div>
+                <button type="button" className="btn btn-secondary btn-small" onClick={loadScanHistory}>Refresh</button>
+              </div>
+              <div className="price-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Time</th>
+                      <th>Student</th>
+                      <th>RFID</th>
+                      <th>Meal Plan</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scanHistory.length === 0 ? (
+                      <tr><td colSpan="6" style={{ textAlign: 'center', color: '#94a3b8', padding: 18 }}>No scan records yet. Records appear after students scan their RFID cards.</td></tr>
+                    ) : scanHistory.map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.transaction_date}</td>
+                        <td style={{ fontSize: 12, color: '#64748b' }}>{row.transaction_time ? String(row.transaction_time).slice(0, 5) : '—'}</td>
+                        <td><strong>{row.emp_name || '—'}</strong><div style={{ fontSize: 11, color: '#64748b' }}>{row.emp_id}</div></td>
+                        <td className="mono" style={{ fontSize: 12 }}>{row.rfid_number || '—'}</td>
+                        <td>{row.meal_category || '—'}</td>
+                        <td>
+                          <span className={`status-pill ${row.transaction_type === 'canteen_denied' ? 'status-cancelled' : 'status-delivered'}`}>
+                            {row.transaction_type === 'canteen_denied' ? 'Denied' : 'Allowed'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            </>
           )}
 
           {/* Wallet Recharge Section */}
@@ -2853,7 +2952,7 @@ function AdminDashboard({
             <div className="master-config-page">
               <div className="master-config-grid" style={{ gridTemplateColumns: '1fr 2fr' }}>
                 <div className="master-card">
-                  <p className="master-card-title">Add / Edit Category</p>
+                  <p className="master-card-title">{editingCategoryId ? 'Edit Category' : 'Add / Edit Category'}</p>
                   <p className="master-card-sub">Define meal categories with their access time window</p>
                   <hr className="section-divider" />
                   <form onSubmit={saveCategory} className="price-form-inline">
@@ -2886,7 +2985,10 @@ function AdminDashboard({
                       />
                     </div>
                     <div className="form-group" style={{ alignSelf: 'end' }}>
-                      <button type="submit" className="btn btn-primary">Save Category</button>
+                      <button type="submit" className="btn btn-primary">{editingCategoryId ? 'Update Category' : 'Save Category'}</button>
+                      {editingCategoryId && (
+                        <button type="button" className="btn btn-secondary" style={{ marginLeft: 6 }} onClick={() => { setEditingCategoryId(null); setCategoryForm({ category_name: '', start_time: '', end_time: '' }); }}>Cancel</button>
+                      )}
                     </div>
                   </form>
                 </div>
@@ -2913,7 +3015,10 @@ function AdminDashboard({
                             <td style={{ fontWeight: 700 }}>{cat.category_name}</td>
                             <td>{cat.start_time ? cat.start_time.slice(0, 5) : '—'}</td>
                             <td>{cat.end_time ? cat.end_time.slice(0, 5) : '—'}</td>
-                            <td><button type="button" className="btn btn-delete btn-small" onClick={() => deleteCategory(cat.id)}>Delete</button></td>
+                            <td style={{ display: 'flex', gap: 6 }}>
+                              <button type="button" className="btn btn-secondary btn-small" onClick={() => { setEditingCategoryId(cat.id); setCategoryForm({ category_name: cat.category_name, start_time: cat.start_time ? cat.start_time.slice(0,5) : '', end_time: cat.end_time ? cat.end_time.slice(0,5) : '' }); }}>Edit</button>
+                              <button type="button" className="btn btn-delete btn-small" onClick={() => deleteCategory(cat.id)}>Delete</button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -2934,19 +3039,17 @@ function AdminDashboard({
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <p className="master-card-title">
-                        {csvMode ? 'CSV Import' : bulkMode ? 'Bulk Import Plans' : 'Set Monthly Price'}
+                        {csvMode ? 'Bulk Import Plans' : 'Set Monthly Price'}
                       </p>
                       <p className="master-card-sub">
-                        {csvMode ? 'Upload a CSV file to create meal plans in bulk' : bulkMode ? 'Add multiple plans at once' : 'Define meal plan price for a specific month'}
+                        {csvMode ? 'Upload a CSV file to create meal plans in bulk' : 'Define meal plan price for a specific month'}
                       </p>
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button type="button" className={`btn btn-small ${!bulkMode && !csvMode ? 'btn-primary' : 'btn-secondary'}`}
+                      <button type="button" className={`btn btn-small ${!csvMode ? 'btn-primary' : 'btn-secondary'}`}
                         onClick={() => { setBulkMode(false); setCsvMode(false); }}>Single</button>
-                      <button type="button" className={`btn btn-small ${bulkMode && !csvMode ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => { setBulkMode(true); setCsvMode(false); }}>Bulk</button>
                       <button type="button" className={`btn btn-small ${csvMode ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => { setCsvMode(true); setBulkMode(false); }}>📂 CSV</button>
+                        onClick={() => { setCsvMode(true); setBulkMode(false); }}>📂 Bulk Import</button>
                     </div>
                   </div>
                   <hr className="section-divider" />
@@ -3808,10 +3911,10 @@ function AdminDashboard({
                       {tuckshopLastSale && (
                         <div className="tuckshop-last-sale">
                           <div className="tuckshop-sale-success">✅ Payment Successful</div>
-                          <div className="tuckshop-sale-student">{tuckshopLastSale.student?.name}</div>
+                          <div className="tuckshop-sale-student">{tuckshopLastSale.employee?.name}</div>
                           <div className="tuckshop-sale-detail">
-                            <span>Deducted: <strong>₹{parseFloat(tuckshopLastSale.total_deducted || 0).toFixed(2)}</strong></span>
-                            <span>New Balance: <strong>₹{parseFloat(tuckshopLastSale.student?.new_balance || 0).toFixed(2)}</strong></span>
+                            <span>Deducted: <strong>₹{parseFloat(tuckshopLastSale.transaction?.total || 0).toFixed(2)}</strong></span>
+                            <span>New Balance: <strong>₹{parseFloat(tuckshopLastSale.transaction?.new_balance || tuckshopLastSale.employee?.wallet_balance || 0).toFixed(2)}</strong></span>
                           </div>
                           <div className="tuckshop-sale-items-list">
                             {(tuckshopLastSale.items || []).map((it, idx) => (
@@ -3835,7 +3938,7 @@ function AdminDashboard({
                     <div className="master-config-grid">
                       <div className="master-card">
                         <div>
-                          <p className="master-card-title">Add Tuckshop Item</p>
+                          <p className="master-card-title">{tuckshopEditId ? 'Edit Tuckshop Item' : 'Add Tuckshop Item'}</p>
                           <p className="master-card-sub">Items will appear in the POS terminal for selection</p>
                         </div>
                         <hr className="section-divider" />
@@ -3871,8 +3974,11 @@ function AdminDashboard({
                               placeholder="Snacks, Beverages…"
                             />
                           </div>
-                          <div className="form-group" style={{ alignSelf: 'end' }}>
-                            <button type="submit" className="btn btn-primary">+ Add</button>
+                          <div className="form-group" style={{ alignSelf: 'end', display: 'flex', gap: 6 }}>
+                            <button type="submit" className="btn btn-primary">{tuckshopEditId ? 'Update' : '+ Add'}</button>
+                            {tuckshopEditId && (
+                              <button type="button" className="btn btn-secondary" onClick={() => { setTuckshopEditId(null); setTuckshopItemForm({ item_name: '', price: '', category: 'General' }); }}>Cancel</button>
+                            )}
                           </div>
                         </form>
                       </div>
@@ -3902,7 +4008,10 @@ function AdminDashboard({
                                     <td style={{ fontWeight: 700 }}>{item.item_name}</td>
                                     <td><span className="slot-meal-tag">{item.category || 'General'}</span></td>
                                     <td style={{ fontWeight: 800, color: '#16a34a' }}>₹{parseFloat(item.price).toFixed(2)}</td>
-                                    <td>
+                                    <td style={{ display: 'flex', gap: 6 }}>
+                                      <button type="button" className="btn btn-secondary btn-small" onClick={() => { setTuckshopEditId(item.id); setTuckshopItemForm({ item_name: item.item_name, price: String(item.price), category: item.category || 'General' }); setTuckshopView('items'); }}>
+                                        Edit
+                                      </button>
                                       <button type="button" className="btn btn-delete btn-small" onClick={() => deleteTuckshopItem(item.id)}>
                                         Delete
                                       </button>
@@ -4016,13 +4125,14 @@ function AdminDashboard({
                         <th>Razorpay Order ID</th>
                         <th>Razorpay Payment ID</th>
                         <th>Status</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {reportLoading ? (
-                        <tr><td colSpan="11" style={{ textAlign: 'center', padding: '20px' }}>Loading…</td></tr>
+                        <tr><td colSpan="12" style={{ textAlign: 'center', padding: '20px' }}>Loading…</td></tr>
                       ) : reportData.length === 0 ? (
-                        <tr><td colSpan="11" style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>No payments found for the selected period</td></tr>
+                        <tr><td colSpan="12" style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>No payments found for the selected period</td></tr>
                       ) : (
                         reportData.map((row) => (
                           <tr key={row.id}>
@@ -4040,6 +4150,7 @@ function AdminDashboard({
                             <td><span className="mono" style={{ fontSize: 11 }}>{row.razorpay_order_id || '—'}</span></td>
                             <td><span className="mono" style={{ fontSize: 11, color: '#6c5ce7' }}>{row.razorpay_payment_id || '—'}</span></td>
                             <td><span className="status-pill status-delivered">{row.payment_status || 'Completed'}</span></td>
+                            <td><button type="button" className="btn btn-delete btn-small" onClick={() => deleteReport(row.id)}>Delete</button></td>
                           </tr>
                         ))
                       )}
@@ -4063,13 +4174,14 @@ function AdminDashboard({
                         <th>Amount</th>
                         <th>Prev Balance</th>
                         <th>New Balance</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {reportLoading ? (
-                        <tr><td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>Loading…</td></tr>
+                        <tr><td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}>Loading…</td></tr>
                       ) : reportData.length === 0 ? (
-                        <tr><td colSpan="9" style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>No transactions found for the selected period</td></tr>
+                        <tr><td colSpan="10" style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>No transactions found for the selected period</td></tr>
                       ) : (
                         reportData.map((row) => (
                           <tr key={row.transaction_id}>
@@ -4095,6 +4207,7 @@ function AdminDashboard({
                             <td style={{ fontWeight: 800, color: '#dc2626' }}>₹{parseFloat(row.amount || 0).toFixed(2)}</td>
                             <td>₹{parseFloat(row.previous_balance || 0).toFixed(2)}</td>
                             <td style={{ fontWeight: 700, color: '#16a34a' }}>₹{parseFloat(row.new_balance || 0).toFixed(2)}</td>
+                            <td><button type="button" className="btn btn-delete btn-small" onClick={() => deleteReport(row.transaction_id || row.id)}>Delete</button></td>
                           </tr>
                         ))
                       )}
@@ -4117,13 +4230,14 @@ function AdminDashboard({
                         <th>Total</th>
                         <th>Prev Balance</th>
                         <th>New Balance</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {reportLoading ? (
-                        <tr><td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>Loading…</td></tr>
+                        <tr><td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>Loading…</td></tr>
                       ) : reportData.length === 0 ? (
-                        <tr><td colSpan="8" style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>No tuckshop sales found</td></tr>
+                        <tr><td colSpan="9" style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>No tuckshop sales found</td></tr>
                       ) : (
                         reportData.map((row) => (
                           <tr key={row.transaction_id}>
@@ -4142,6 +4256,7 @@ function AdminDashboard({
                             <td style={{ fontWeight: 800, color: '#dc2626' }}>₹{parseFloat(row.total_amount || 0).toFixed(2)}</td>
                             <td>₹{parseFloat(row.previous_balance || 0).toFixed(2)}</td>
                             <td style={{ fontWeight: 700, color: '#16a34a' }}>₹{parseFloat(row.new_balance || 0).toFixed(2)}</td>
+                            <td><button type="button" className="btn btn-delete btn-small" onClick={() => deleteReport(row.transaction_id)}>Delete</button></td>
                           </tr>
                         ))
                       )}
@@ -4243,18 +4358,24 @@ function AdminDashboard({
                               <span style={{
                                 padding: '4px 8px',
                                 borderRadius: '4px',
-                                background: transaction.meal_category === 'Breakfast' ? '#fff3cd' :
+                                background: transaction.transaction_type === 'canteen' ? '#e0f2fe' :
+                                           transaction.transaction_type === 'canteen_denied' ? '#fee2e2' :
+                                           transaction.meal_category === 'Breakfast' ? '#fff3cd' :
                                            transaction.meal_category === 'Lunch' ? '#d4edda' : '#d1ecf1',
                                 color: '#000'
                               }}>
-                                {transaction.meal_category || (transaction.transaction_type === 'visitor' ? 'Visitor Order' : 'Recharge')}
+                                {transaction.transaction_type === 'canteen' ? `✅ ${transaction.meal_category || 'Canteen'}` :
+                                 transaction.transaction_type === 'canteen_denied' ? `❌ Denied` :
+                                 transaction.meal_category || (transaction.transaction_type === 'visitor' ? 'Visitor Order' : 'Recharge')}
                               </span>
                             </td>
                             <td style={{ 
-                              color: transaction.transaction_type === 'deduction' ? '#e74c3c' : '#27ae60',
+                              color: transaction.transaction_type === 'deduction' || transaction.transaction_type === 'tuckshop' ? '#e74c3c' :
+                                     transaction.transaction_type === 'canteen_denied' ? '#dc2626' : '#27ae60',
                               fontWeight: 'bold'
                             }}>
-                              {transaction.transaction_type === 'deduction' ? '-' : '+'}₹{parseFloat(transaction.amount || 0).toFixed(2)}
+                              {transaction.transaction_type === 'deduction' || transaction.transaction_type === 'tuckshop' ? '-' :
+                               transaction.transaction_type === 'canteen' || transaction.transaction_type === 'canteen_denied' ? '' : '+'}₹{parseFloat(transaction.amount || 0).toFixed(2)}
                             </td>
                             <td>{transaction.previous_balance ? `₹${parseFloat(transaction.previous_balance).toFixed(2)}` : '—'}</td>
                             <td style={{ fontWeight: 'bold', color: '#27ae60' }}>

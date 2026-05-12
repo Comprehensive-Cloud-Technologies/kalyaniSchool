@@ -104,4 +104,23 @@ router.get('/', async (req, res) => {
   }
 });
 
+// DELETE /api/reports?type=razorpay|tuckshop|deductions&id=X
+router.delete('/', async (req, res) => {
+  const type = req.query.type || 'razorpay';
+  const id   = parseInt(req.query.id || 0);
+  if (!id) return res.status(400).json({ status: 'error', message: 'id is required' });
+  try {
+    if (type === 'razorpay') {
+      await pool.query('DELETE FROM wallet_recharge_payments WHERE id=?', [id]);
+    } else if (type === 'tuckshop' || type === 'deductions') {
+      await pool.query('DELETE FROM transactions WHERE id=?', [id]);
+    } else {
+      return res.status(400).json({ status: 'error', message: 'Invalid type' });
+    }
+    res.json({ status: 'success', message: 'Record deleted' });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 module.exports = router;

@@ -37,10 +37,20 @@ router.post('/', async (req, res) => {
 
       const normEmail = email.trim().toLowerCase();
       const [existing] = await conn.query(
-        "SELECT id FROM parents WHERE email=? LIMIT 1", [normEmail]
+        "SELECT id, is_active FROM parents WHERE email=? LIMIT 1", [normEmail]
       );
-      if (existing.length > 0)
-        return res.status(409).json({ error: 'An account with this email already exists' });
+      if (existing.length > 0) {
+        if (parseInt(existing[0].is_active) === 1)
+          return res.status(409).json({ error: 'An account with this email already exists' });
+        // Account was deleted/deactivated — reactivate with new credentials
+        const hash = await bcrypt.hash(password, 10);
+        await conn.query(
+          "UPDATE parents SET full_name=?, phone=?, password_hash=?, is_active=1 WHERE id=?",
+          [full_name.trim(), (phone || '').trim(), hash, existing[0].id]
+        );
+        const reactivated = { id: existing[0].id, full_name: full_name.trim(), email: normEmail, phone: (phone || '').trim() };
+        return res.json({ message: 'Account created successfully', data: await parentResponse(conn, reactivated) });
+      }
 
       const hash = await bcrypt.hash(password, 10);
       const [result] = await conn.query(

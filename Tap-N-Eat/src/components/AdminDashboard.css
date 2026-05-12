@@ -799,6 +799,8 @@
   border-radius: 14px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.05);
   border: 1px solid #eef2f6;
+  overflow-x: auto;
+  min-height: 0;
 }
 
 /* Form Styles */
@@ -1965,6 +1967,7 @@ table tbody tr:last-child td {
   .dashboard-container {
     flex-direction: column;
     height: auto;
+    min-height: 100vh;
     overflow: visible;
   }
 
@@ -1981,6 +1984,7 @@ table tbody tr:last-child td {
   .main-content {
     height: auto;
     overflow: visible;
+    padding-bottom: 40px;
   }
 
   .form-grid {
@@ -2525,7 +2529,8 @@ table tbody tr:last-child td {
 
 .price-table-wrap {
   border-radius: 10px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: visible;
   border: 1px solid #e5e7eb;
   background: var(--surface);
 }

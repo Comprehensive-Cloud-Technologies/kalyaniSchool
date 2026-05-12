@@ -75,4 +75,23 @@ router.delete('/', async (req, res) => {
   }
 });
 
+// PUT /api/meal-categories  { id, category_name, start_time, end_time }
+router.put('/', async (req, res) => {
+  const id           = parseInt(req.body.id || 0);
+  const categoryName = (req.body.category_name || '').trim();
+  const startTime    = req.body.start_time || null;
+  const endTime      = req.body.end_time   || null;
+  if (!id || !categoryName || !startTime || !endTime)
+    return res.status(400).json({ error: 'id, category_name, start_time, and end_time are required' });
+  try {
+    await pool.query(
+      'UPDATE meal_categories SET category_name=?, start_time=?, end_time=?, updated_at=NOW() WHERE id=?',
+      [categoryName, startTime, endTime, id]
+    );
+    res.json({ message: 'Meal category updated' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
