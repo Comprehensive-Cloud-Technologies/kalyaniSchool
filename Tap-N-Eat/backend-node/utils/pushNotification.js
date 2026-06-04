@@ -1,19 +1,31 @@
 /**
  * pushNotification.js
  * -------------------
- * Backend helper for Expo Push Notifications.
+ * Backend helper for push notifications via Firebase Admin SDK (FCM V1).
+ * Stats appear in Firebase Console → Cloud Messaging.
  *
  * Exported functions:
- *  - ensurePushTokensTable(conn)          — auto-creates the DB table
- *  - getTokensByEmail(parentEmail)        — returns active tokens for a parent
- *  - getTokensByStudentId(studentId)      — returns tokens via student→parent lookup
- *  - sendPushNotifications(tokens, ...)   — sends notifications via Expo Push API
+ *  - ensurePushTokensTable(conn)              — auto-creates the DB table
+ *  - getTokensByEmail(parentEmail)            — returns active tokens for a parent
+ *  - getTokensByStudentId(studentId)          — returns tokens via student→parent lookup
+ *  - sendPushNotifications(tokens, ...)       — sends via FCM V1
  *  - sendNotificationToParentByEmail(...)     — convenience: lookup + send
  *  - sendNotificationToParentByStudentId(...) — convenience: lookup + send
  */
 
-const https = require('https');
+const admin = require('firebase-admin');
 const pool  = require('../config/database');
+
+// ── Firebase Admin initialisation (singleton) ─────────────────────────────────
+
+if (!admin.apps.length) {
+  const serviceAccount = require('../firebase-service-account.json');
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+}
+
+const messaging = admin.messaging();
 
 // ── Table management ──────────────────────────────────────────────────────────
 
@@ -96,12 +108,6 @@ async function getTokensByStudentId(studentId) {
 
 // ── Token lifecycle ───────────────────────────────────────────────────────────
 
-/**
- * Marks a push token as inactive.
- * Called when Expo reports DeviceNotRegistered for a token.
- *
- * @param {string} pushToken
- */
 async function deactivateToken(pushToken) {
   try {
     await pool.query(
@@ -116,76 +122,53 @@ async function deactivateToken(pushToken) {
 // ── Sending ───────────────────────────────────────────────────────────────────
 
 /**
- * Sends Expo push notifications to one or more tokens via the Expo Push API.
- * Invalid tokens (DeviceNotRegistered) are automatically deactivated.
+ * Sends push notifications to one or more FCM registration tokens via
+ * Firebase Admin SDK (FCM V1). Stats appear in Firebase Console.
  *
- * @param {string[]} tokens - Array of Expo Push Token strings
- * @param {string}   title  - Notification title
- * @param {string}   body   - Notification body
- * @param {Object}   data   - Data payload for navigation on tap
- * @returns {Promise<void>}
+ * @param {string[]} tokens - Array of FCM registration token strings
+ * @param {string}   title
+ * @param {string}   body
+ * @param {Object}   data   - Data payload for navigation on tap (string values only)
  */
 async function sendPushNotifications(tokens, title, body, data = {}) {
   if (!tokens || tokens.length === 0) return;
 
-  // Only send to valid Expo push token format
-  const validTokens = tokens.filter(
-    (t) => t && /^Expo(nent)?PushToken\[.+\]$/.test(t)
-  );
-  if (validTokens.length === 0) return;
+  // FCM V1 requires all data values to be strings
+  const stringData = {};
+  for (const [k, v] of Object.entries(data)) {
+    stringData[k] = String(v);
+  }
 
-  const messages = validTokens.map((token) => ({
-    to: token,
-    sound: 'default',
-    title,
-    body,
-    data,
-    priority: 'high',
-    channelId: 'default',
-  }));
-
-  return new Promise((resolve) => {
-    const payload = JSON.stringify(messages);
-    const options = {
-      hostname: 'exp.host',
-      path: '/--/api/v2/push/send',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Accept-Encoding': 'gzip, deflate',
-        'Content-Length': Buffer.byteLength(payload),
-      },
-    };
-
-    const req = https.request(options, (res) => {
-      let raw = '';
-      res.on('data', (chunk) => { raw += chunk; });
-      res.on('end', async () => {
-        try {
-          const result = JSON.parse(raw);
-          const tickets = result.data || [];
-          // Deactivate tokens that Expo reports as no longer registered
-          for (let i = 0; i < tickets.length; i++) {
-            const ticket = tickets[i];
-            if (
-              ticket.status === 'error' &&
-              ticket.details?.error === 'DeviceNotRegistered'
-            ) {
-              await deactivateToken(validTokens[i]).catch(() => {});
-            }
-          }
-        } catch {
-          // Parse error — nothing to act on
-        }
-        resolve();
+  const sendPromises = tokens.map(async (token) => {
+    try {
+      await messaging.send({
+        token,
+        notification: { title, body },
+        android: {
+          priority: 'high',
+          notification: {
+            channelId: 'default',
+            sound: 'default',
+          },
+        },
+        data: stringData,
       });
-    });
-
-    req.on('error', () => resolve()); // Network error — silently skip
-    req.write(payload);
-    req.end();
+      console.log(`[FCM] Sent to token ...${token.slice(-10)}`);
+    } catch (err) {
+      const code = err.errorInfo?.code || err.code || '';
+      if (
+        code === 'messaging/registration-token-not-registered' ||
+        code === 'messaging/invalid-registration-token'
+      ) {
+        await deactivateToken(token);
+        console.log(`[FCM] Deactivated invalid token ...${token.slice(-10)}`);
+      } else {
+        console.error(`[FCM] Send error for token ...${token.slice(-10)}:`, code);
+      }
+    }
   });
+
+  await Promise.allSettled(sendPromises);
 }
 
 // ── Convenience wrappers ──────────────────────────────────────────────────────

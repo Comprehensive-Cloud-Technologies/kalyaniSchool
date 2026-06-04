@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "329250544814",
+    "project_id": "tapneat-parent",
+    "storage_bucket": "tapneat-parent.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:329250544814:android:b0620140e693a99725613f",
+        "android_client_info": {
+          "package_name": "com.tapneat.parent"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBto7oNN0lZaiQtJBhSCnLsQaf_30yqVRs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

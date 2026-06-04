@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../utils/api';
 import { setParentAuth, getItem } from '../utils/storage';
 import { COLORS } from '../constants';
+import { registerForPushNotificationsAsync } from '../utils/notifications';
 
 const PRIVACY_POLICY_URL = 'https://tapneat.cctindia.in/privacy-policy.html';
 
@@ -54,6 +55,10 @@ export default function LoginScreen({ navigation, route }) {
     const logoUrl  = (data.data.school && data.data.school.logo_url) || '';
     const sName    = (data.data.school && data.data.school.name) || '';
     await setParentAuth(data.data.parent.email, data.data.parent.full_name, logoUrl, sName, schoolId);
+    // Register push token right after login — we have a confirmed email here
+    registerForPushNotificationsAsync(data.data.parent.email).catch((err) => {
+      console.error('[Login] Push registration error:', err);
+    });
     setLoading(false);
     navigation.replace('Dashboard');
   };

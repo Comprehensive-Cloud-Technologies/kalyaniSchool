@@ -2,6 +2,7 @@
   "expo": {
     "name": "Tap-N-Eat",
     "slug": "tap-n-eat",
+    "scheme": "tapneat",
     "version": "1.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -18,7 +19,8 @@
     },
     "android": {
       "package": "com.tapneat.parent",
-      "versionCode": 6,
+      "versionCode": 9,
+      "googleServicesFile": "./google-services.json",
       "usesCleartextTraffic": true,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {

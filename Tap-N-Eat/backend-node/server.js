@@ -13,6 +13,12 @@ app.use(cors());
 // Raised limit so base64 logo uploads (up to a few MB) fit in JSON bodies
 app.use(express.json({ limit: '10mb' }));
 
+// Simple request logger — logs METHOD + path to stdout (visible in pm2 logs)
+app.use((req, _res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
+
 // Serve uploaded files (school logos etc.)
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });

@@ -3,6 +3,9 @@ node_modules/
 my-catalyst-app/
 .env
 .env.*
+
+# Secret credentials - NEVER commit these
+backend-node/firebase-service-account.json
 *.log
 .DS_Store
 

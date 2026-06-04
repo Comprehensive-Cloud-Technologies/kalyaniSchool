@@ -13,7 +13,8 @@ import DashboardScreen from './src/screens/DashboardScreen';
 // Show banner + play sound even when the app is already open.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),

@@ -3,7 +3,7 @@
  * --------------
  * POST /api/push-tokens  { email, push_token }
  *
- * Saves (or refreshes) an Expo Push Token for a parent device.
+ * Saves (or refreshes) an FCM registration token for a parent device.
  * If the same token already exists for this parent it is re-activated;
  * if it belongs to a different email the unique constraint prevents collision.
  */
@@ -25,11 +25,11 @@ router.post('/', async (req, res) => {
     });
   }
 
-  // Validate Expo token format (ExponentPushToken[...] or ExpoPushToken[...])
-  if (!/^Expo(nent)?PushToken\[.+\]$/.test(pushToken)) {
+  // Validate FCM token — must be a non-empty string (FCM tokens are long alphanumeric strings)
+  if (typeof pushToken !== 'string' || pushToken.trim().length < 10) {
     return res.status(400).json({
       success: false,
-      message: 'Invalid Expo push token format',
+      message: 'Invalid push token',
     });
   }
 

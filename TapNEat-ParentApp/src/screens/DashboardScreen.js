@@ -84,8 +84,10 @@ export default function DashboardScreen({ navigation }) {
       setSchoolName(sname || '');
 
       // Register for push notifications now that we have the parent's email.
-      // Errors are swallowed — a failed registration must never break the UI.
-      registerForPushNotificationsAsync(email).catch(() => {});
+      // Runs every mount so a token is always fresh (no-op if already saved).
+      registerForPushNotificationsAsync(email).catch((err) => {
+        console.error('[Dashboard] Push notification registration error:', err);
+      });
 
       // Then fetch the latest profile from the server so the logo is always fresh
       // (e.g. the school may have updated its logo after the user last logged in)
@@ -195,6 +197,19 @@ export default function DashboardScreen({ navigation }) {
             <Text style={styles.profileEmail}>{parentEmail}</Text>
 
             <View style={styles.modalDivider} />
+
+            {/* Re-register push notifications */}
+            <TouchableOpacity
+              style={[styles.modalLogoutBtn, { borderColor: COLORS.primary, marginBottom: 10 }]}
+              onPress={async () => {
+                setModalVisible(false);
+                await registerForPushNotificationsAsync(parentEmail);
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="notifications-outline" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
+              <Text style={[styles.modalLogoutText, { color: COLORS.primary }]}>Enable Notifications</Text>
+            </TouchableOpacity>
 
             {/* Logout button */}
             <TouchableOpacity
