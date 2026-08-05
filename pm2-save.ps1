@@ -1,6 +1,6 @@
 $KeyPath = "D:\key1.pem"
 $EC2_USER = "ec2-user"
-$EC2_IP = "13.51.167.146"
+$EC2_IP = "13.233.48.251"
 
 $CMD = @'
 export NVM_DIR="$HOME/.nvm"

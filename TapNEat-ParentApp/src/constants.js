@@ -1,5 +1,5 @@
 // API base for production EC2 server
-export const API_BASE_URL = 'http://13.51.167.146/api';
+export const API_BASE_URL = 'http://13.233.48.251/api';
 
 export const RAZORPAY_KEY = 'rzp_test_SV4dT3pK23zxSP';
 export const CONVENIENCE_RATE = 0.02; // 2%

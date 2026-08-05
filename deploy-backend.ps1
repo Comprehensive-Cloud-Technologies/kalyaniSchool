@@ -1,7 +1,7 @@
-$KeyPath  = "D:\key1.pem"
-$EC2_IP   = "13.51.167.146"
+$KeyPath  = "C:\Users\Archit Kore\Downloads\key1.pem"
+$EC2_IP   = "13.233.48.251"
 $EC2_USER = "ec2-user"
-$BACKEND  = "D:\TAP_RFID\Tap-N-Eat\backend-node"
+$BACKEND  = "D:\projects\K_school\kalyaniSchool\Tap-N-Eat\backend-node"
 
 # Fix key permissions
 icacls $KeyPath /inheritance:r /grant:r "${env:USERNAME}:(R)" 2>$null
@@ -39,7 +39,7 @@ pm2 status
 
 echo ""
 echo "============================================================"
-echo " Deployment complete!  http://13.51.167.146/api/health"
+echo " Deployment complete!  http://13.233.48.251/api/health"
 echo "============================================================"
 '@
 
