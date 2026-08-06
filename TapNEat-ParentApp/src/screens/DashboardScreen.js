@@ -48,7 +48,7 @@ const Tab = createBottomTabNavigator();
 function resolveLogoUrl(relativePath) {
   if (!relativePath) return '';
   if (/^https?:\/\//i.test(relativePath)) return relativePath; // already absolute
-  return `https://13-51-167-146.sslip.io${relativePath.startsWith('/') ? '' : '/'}${relativePath}`;
+  return `https://13-233-48-251.sslip.io${relativePath.startsWith('/') ? '' : '/'}${relativePath}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
