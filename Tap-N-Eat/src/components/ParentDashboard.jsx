@@ -696,7 +696,7 @@ export default function ParentDashboard() {
                           {[new Date().getFullYear(), new Date().getFullYear() + 1].map((yr) => (
                             <button key={yr} type="button"
                               className={`btn btn-small ${payYear === yr ? 'btn-primary' : 'btn-secondary'}`}
-                              onClick={() => { setPayYear(yr); setSelectedMonths([]); const sid = paySelectedChild?.school_id || null; loadMonthlyPrices(selectedMealTypeId, sid); }}
+                              onClick={() => { setPayYear(yr); setSelectedMonths([]); const sid = paySelectedChild?.school_id || null; loadMonthlyPrices(selectedMealTypeId, sid, yr); }}
                             >{yr}</button>
                           ))}
                         </div>
