@@ -6,8 +6,8 @@ const RAZORPAY_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_SV4dT3pK2
 const CONVENIENCE_RATE = 0.02; // 2%
 
 const MONTH_NAMES = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December',
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
 function loadRazorpayScript() {
@@ -84,7 +84,7 @@ export default function ParentDashboard() {
   /* ── Payments ── */
   const [paymentDate] = useState(() => {
     const d = new Date();
-    return `${String(d.getDate()).padStart(2,'0')}-${d.toLocaleString('en-GB',{month:'short'})}-${d.getFullYear()}`;
+    return `${String(d.getDate()).padStart(2, '0')}-${d.toLocaleString('en-GB', { month: 'short' })}-${d.getFullYear()}`;
   });
   const [paySelectedChildId, setPaySelectedChildId] = useState('');
   const [mealTypes, setMealTypes] = useState([]);
@@ -130,8 +130,8 @@ export default function ParentDashboard() {
       setSchoolNameFromSession(nextName);
       try {
         localStorage.setItem('parentSchoolLogoUrl', nextLogo);
-        localStorage.setItem('parentSchoolName',    nextName);
-      } catch {}
+        localStorage.setItem('parentSchoolName', nextName);
+      } catch { }
     }
     setLoading(false);
   };
@@ -150,7 +150,7 @@ export default function ParentDashboard() {
     const now = new Date();
     const curYear = now.getFullYear();
     const schoolParam = child?.school_id ? `&school_id=${child.school_id}` : '';
-    const gradeParam  = child?.grade ? `&grade=${encodeURIComponent(child.grade)}` : '';
+    const gradeParam = child?.grade ? `&grade=${encodeURIComponent(child.grade)}` : '';
     const { ok: pOk, data: pData } = await api(
       `monthly-meal-plans?year=${curYear}&year_end=${curYear + 1}${schoolParam}${gradeParam}`
     );
@@ -414,9 +414,9 @@ export default function ParentDashboard() {
             onClick={() => setActiveTab('subscriptions')}
           >
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" strokeWidth="2"/>
-              <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" strokeWidth="2" />
+              <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             Meal Plans
           </button>
@@ -425,8 +425,8 @@ export default function ParentDashboard() {
             onClick={() => setActiveTab('payment-history')}
           >
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 8v4l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2"/>
+              <path d="M12 8v4l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
             </svg>
             Payment History
           </button>
@@ -435,7 +435,7 @@ export default function ParentDashboard() {
         <button
           className="parent-logout"
           onClick={() => {
-            try { localStorage.removeItem('parentEmail'); localStorage.removeItem('parentName'); } catch {}
+            try { localStorage.removeItem('parentEmail'); localStorage.removeItem('parentName'); } catch { }
             window.location.hash = '#/parent-login';
           }}
         >
@@ -540,14 +540,14 @@ export default function ParentDashboard() {
                                   {item.transaction_type === 'recharge'
                                     ? ((item.meal_category || '').toLowerCase().includes('tuckshop') ? 'TuckShop Top-Up' : 'Wallet Credit')
                                     : item.transaction_type === 'meal_subscription'
-                                    ? 'Meal Plan'
-                                    : item.transaction_type === 'tuckshop'
-                                    ? 'Tuckshop'
-                                    : item.transaction_type === 'canteen'
-                                    ? '🍽 Canteen'
-                                    : item.transaction_type === 'canteen_denied'
-                                    ? '⛔ Denied'
-                                    : 'Meal Slot'}
+                                      ? 'Meal Plan'
+                                      : item.transaction_type === 'tuckshop'
+                                        ? 'Tuckshop'
+                                        : item.transaction_type === 'canteen'
+                                          ? '🍽 Canteen'
+                                          : item.transaction_type === 'canteen_denied'
+                                            ? '⛔ Denied'
+                                            : 'Meal Slot'}
                                 </span>
                               </td>
                               <td>{item.meal_category || 'Wallet'}</td>
@@ -635,18 +635,18 @@ export default function ParentDashboard() {
 
                     {/* Current Meal Plan - hidden in TuckShop mode */}
                     {!isTuckShopMode && (
-                    <div className="pay-field">
-                      <label>Current Meal Plan <span className="req">*</span></label>
-                      <select
-                        value={selectedMealTypeId}
-                        onChange={(e) => setSelectedMealTypeId(e.target.value)}
-                      >
-                        <option value="">— Select —</option>
-                        {mealTypes.map((m) => (
-                          <option key={m.id} value={String(m.id)}>{m.meal_name}</option>
-                        ))}
-                      </select>
-                    </div>
+                      <div className="pay-field">
+                        <label>Current Meal Plan <span className="req">*</span></label>
+                        <select
+                          value={selectedMealTypeId}
+                          onChange={(e) => setSelectedMealTypeId(e.target.value)}
+                        >
+                          <option value="">— Select —</option>
+                          {mealTypes.map((m) => (
+                            <option key={m.id} value={String(m.id)}>{m.meal_name}</option>
+                          ))}
+                        </select>
+                      </div>
                     )}
 
                     {/* Grade */}
@@ -690,43 +690,43 @@ export default function ParentDashboard() {
                         <p className="pay-hint">This amount will be credited to the student wallet for tuckshop use.</p>
                       </div>
                     ) : (
-                    <div className="pay-field pay-field-full">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                        <label style={{ margin: 0 }}>Payment Year</label>
-                        {[new Date().getFullYear(), new Date().getFullYear() + 1].map((yr) => (
-                          <button key={yr} type="button"
-                            className={`btn btn-small ${payYear === yr ? 'btn-primary' : 'btn-secondary'}`}
-                            onClick={() => { setPayYear(yr); setSelectedMonths([]); const sid = paySelectedChild?.school_id || null; loadMonthlyPrices(selectedMealTypeId, sid); }}
-                          >{yr}</button>
-                        ))}
+                      <div className="pay-field pay-field-full">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                          <label style={{ margin: 0 }}>Payment Year</label>
+                          {[new Date().getFullYear(), new Date().getFullYear() + 1].map((yr) => (
+                            <button key={yr} type="button"
+                              className={`btn btn-small ${payYear === yr ? 'btn-primary' : 'btn-secondary'}`}
+                              onClick={() => { setPayYear(yr); setSelectedMonths([]); const sid = paySelectedChild?.school_id || null; loadMonthlyPrices(selectedMealTypeId, sid); }}
+                            >{yr}</button>
+                          ))}
+                        </div>
+                        <label>Payment Month</label>
+                        <div className="pay-months-grid">
+                          {MONTH_NAMES.map((name, idx) => {
+                            const m = idx + 1;
+                            const price = monthlyPrices[m];
+                            const hasPrice = price !== undefined;
+                            return (
+                              <label
+                                key={m}
+                                className={`pay-month-checkbox${!hasPrice ? ' disabled' : ''}${selectedMonths.includes(m) ? ' checked' : ''}`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedMonths.includes(m)}
+                                  disabled={!hasPrice}
+                                  onChange={() => hasPrice && toggleMonth(m)}
+                                />
+                                <span className="pay-month-name">{name.slice(0, 3)}</span>
+                                {hasPrice && <small className="pay-month-price">₹{price.toFixed(0)}</small>}
+                              </label>
+                            );
+                          })}
+                        </div>
+                        {selectedMealTypeId && Object.keys(monthlyPrices).length === 0 && (
+                          <p className="pay-hint">No monthly prices configured for this meal plan. Please contact school.</p>
+                        )}
                       </div>
-                      <label>Payment Month</label>
-                      <div className="pay-months-grid">
-                        {MONTH_NAMES.map((name, idx) => {
-                          const m = idx + 1;
-                          const price = monthlyPrices[m];
-                          const hasPrice = price !== undefined;
-                          return (
-                            <label
-                              key={m}
-                              className={`pay-month-checkbox${!hasPrice ? ' disabled' : ''}${selectedMonths.includes(m) ? ' checked' : ''}`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={selectedMonths.includes(m)}
-                                disabled={!hasPrice}
-                                onChange={() => hasPrice && toggleMonth(m)}
-                              />
-                              <span className="pay-month-name">{name.slice(0, 3)}</span>
-                              {hasPrice && <small className="pay-month-price">₹{price.toFixed(0)}</small>}
-                            </label>
-                          );
-                        })}
-                      </div>
-                      {selectedMealTypeId && Object.keys(monthlyPrices).length === 0 && (
-                        <p className="pay-hint">No monthly prices configured for this meal plan. Please contact school.</p>
-                      )}
-                    </div>
                     )}
 
                     {/* Sub Total */}
@@ -816,7 +816,7 @@ export default function ParentDashboard() {
                     <div className="parent-empty small">No meal plans available for the current period. Contact the school admin.</div>
                   ) : (() => {
                     // Group by meal type
-                    const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                    const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                     const groups = {};
                     availablePlans.forEach((p) => {
                       if (!groups[p.meal_type_id]) groups[p.meal_type_id] = { meal_name: p.meal_name, meal_type_id: p.meal_type_id, plans: [] };
@@ -857,7 +857,7 @@ export default function ParentDashboard() {
                                           color: done ? '#065f46' : '#334155',
                                           border: `1px solid ${done ? '#6ee7b7' : '#e2e8f0'}`
                                         }}>
-                                          {MN[(p.month||1)-1]} {p.year} — ₹{parseFloat(p.price).toFixed(0)}
+                                          {MN[(p.month || 1) - 1]} {p.year} — ₹{parseFloat(p.price).toFixed(0)}
                                           {done ? ' ✓' : ''}
                                         </span>
                                       );
@@ -911,7 +911,7 @@ export default function ParentDashboard() {
                         </thead>
                         <tbody>
                           {subscriptions.map((sub) => {
-                            const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                             const isActive = sub.status === 'Active';
                             return (
                               <tr key={sub.id}>
