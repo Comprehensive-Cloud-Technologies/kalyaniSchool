@@ -18,14 +18,21 @@ const pool  = require('../config/database');
 
 // ── Firebase Admin initialisation (singleton) ─────────────────────────────────
 
-if (!admin.apps.length) {
-  const serviceAccount = require('../firebase-service-account.json');
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-}
+let messaging = null;
 
-const messaging = admin.messaging();
+if (!admin.apps.length) {
+  try {
+    const serviceAccount = require('../firebase-service-account.json');
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+    messaging = admin.messaging();
+  } catch (e) {
+    console.warn('[PushNotification] firebase-service-account.json not found — push notifications disabled');
+  }
+} else {
+  messaging = admin.messaging();
+}
 
 // ── Table management ──────────────────────────────────────────────────────────
 
@@ -132,6 +139,7 @@ async function deactivateToken(pushToken) {
  */
 async function sendPushNotifications(tokens, title, body, data = {}) {
   if (!tokens || tokens.length === 0) return;
+  if (!messaging) return; // Firebase not configured — skip silently
 
   // FCM V1 requires all data values to be strings
   const stringData = {};
